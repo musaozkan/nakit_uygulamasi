@@ -147,7 +147,7 @@ export default function WalletScreen() {
     return result.filter(Boolean) as Transaction[];
   };
 
-  const handleSendPress = () => router.push('/send/select-token');
+  const handleSendPress = () => router.push('/send-money');
   const handleQRPress = () => {
     // BYPASS: Doğrudan Takı Tak ekranına git (Test için)
     router.push({
