@@ -8,7 +8,6 @@
 - **Multi-Asset Support:** Securely store, send, and receive **Tether Gold (XAUT)** and **Tether USD (USDT)**.
 - **Real-time Valuation:** View your portfolio value in USD with real-time price updates.
 - **Transaction History:** Track all your incoming and outgoing transfers with detailed activity logs.
-- **Biometric Security:** Protect your assets with FaceID/TouchID and PIN authentication.
 
 ### 2. Gold Day (Altın Günü) 🆕
 A digital reimagining of the traditional "Gold Day" (Altın Günü) culture:
@@ -83,7 +82,6 @@ src/
 
 - **Non-Custodial:** You own your private keys. The app generates a seed phrase that is stored securely on your device.
 - **Encryption:** Sensitive data is encrypted using industry-standard libraries.
-- **Authentication:** Biometric and PIN protection ensures only you can access your funds.
 
 ## 🤝 Contributing
 
