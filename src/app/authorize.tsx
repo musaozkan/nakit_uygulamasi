@@ -1,4 +1,4 @@
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 import { Fingerprint, Shield } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';

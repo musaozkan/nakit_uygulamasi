@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { CHAINS_CONFIG } from "../config/chains";
 import { Toaster } from 'sonner-native';
 import { colors } from '@/constants/colors';
+import { KeseWalletProvider } from '@/providers/KeseWalletProvider';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,26 +48,28 @@ export default function RootLayout() {
         }}
       >
         <WalletProvider
-        config={{
-          indexer: {
-            apiKey: process.env.EXPO_PUBLIC_WDK_INDEXER_API_KEY!,
-            url: process.env.EXPO_PUBLIC_WDK_INDEXER_BASE_URL!,
-          },
-          chains: CHAINS_CONFIG,
-          enableCaching: true,
-        }}
+          config={{
+            indexer: {
+              apiKey: process.env.EXPO_PUBLIC_WDK_INDEXER_API_KEY!,
+              url: process.env.EXPO_PUBLIC_WDK_INDEXER_BASE_URL!,
+            },
+            chains: CHAINS_CONFIG,
+            enableCaching: true,
+          }}
         >
-          <NavigationThemeProvider value={CustomDarkTheme}>
-            <View style={{ flex: 1, backgroundColor: colors.background }}>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.background },
-                }}
-              />
-              <StatusBar style="light" />
-            </View>
-          </NavigationThemeProvider>
+          <KeseWalletProvider>
+            <NavigationThemeProvider value={CustomDarkTheme}>
+              <View style={{ flex: 1, backgroundColor: colors.background }}>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background },
+                  }}
+                />
+                <StatusBar style="light" />
+              </View>
+            </NavigationThemeProvider>
+          </KeseWalletProvider>
         </WalletProvider>
         <Toaster
           offset={90}

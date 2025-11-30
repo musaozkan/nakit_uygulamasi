@@ -1,4 +1,5 @@
-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
+import { AssetTicker } from '@tetherto/wdk-react-native-provider';
 import { Transaction, TransactionList } from '@tetherto/wdk-uikit-react-native';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -17,7 +18,7 @@ export default function ActivityScreen() {
 
   // Transform wallet transactions to display format with fiat values
   const getTransactionsWithFiatValues = async () => {
-    if (!walletTransactions.list) return [];
+    if (!walletTransactions?.list) return [];
 
     // Get the wallet's own addresses for comparison
     const walletAddresses = addresses
@@ -59,11 +60,11 @@ export default function ActivityScreen() {
   useEffect(() => {
     getTransactionsWithFiatValues().then(setTransactions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletTransactions.list, addresses]);
+  }, [walletTransactions?.list, addresses]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header isLoading={walletTransactions.isLoading} title="Activity" />
+      <Header isLoading={walletTransactions?.isLoading} title="Activity" />
       <TransactionList transactions={transactions} />
     </View>
   );

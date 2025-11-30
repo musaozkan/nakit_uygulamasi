@@ -1,6 +1,7 @@
 import { assetConfig } from '@/config/assets';
 import formatAmount from '@/utils/format-amount';
-import { AssetTicker, NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
+import { AssetTicker, NetworkType } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useLocalSearchParams } from 'expo-router';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 import React, { useEffect, useState } from 'react';

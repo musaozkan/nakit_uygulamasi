@@ -1,4 +1,4 @@
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';

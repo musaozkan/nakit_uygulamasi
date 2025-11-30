@@ -1,4 +1,5 @@
-import { AssetTicker, useWallet, WDKService } from '@tetherto/wdk-react-native-provider';
+import { AssetTicker, WDKService } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { CryptoAddressInput } from '@tetherto/wdk-uikit-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
@@ -365,7 +366,7 @@ export default function SendDetailsScreen() {
       );
 
       setTransactionResult({ txId: sendResult });
-      
+
       // Navigate to success screen
       router.replace({
         pathname: '/transaction/success',
@@ -375,7 +376,7 @@ export default function SendDetailsScreen() {
           txHash: sendResult.hash
         }
       });
-      
+
     } catch (error) {
       console.error('Transaction failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
@@ -563,7 +564,7 @@ export default function SendDetailsScreen() {
                 style={[
                   styles.sendButton,
                   (amountError || !amount || !recipientAddress || sendingTransaction) &&
-                    styles.sendButtonDisabled,
+                  styles.sendButtonDisabled,
                 ]}
                 onPress={handleSend}
                 disabled={!!(amountError || !amount || !recipientAddress || sendingTransaction)}
@@ -572,7 +573,7 @@ export default function SendDetailsScreen() {
                   style={[
                     styles.sendButtonText,
                     (amountError || !amount || !recipientAddress || sendingTransaction) &&
-                      styles.sendButtonTextDisabled,
+                    styles.sendButtonTextDisabled,
                   ]}
                 >
                   {sendingTransaction ? 'Sending...' : 'Send'}

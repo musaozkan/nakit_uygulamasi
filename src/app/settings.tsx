@@ -3,7 +3,8 @@ import { clearAvatar } from '@/config/avatar-options';
 import { networkConfigs } from '@/config/networks';
 import useWalletAvatar from '@/hooks/use-wallet-avatar';
 import getDisplaySymbol from '@/utils/get-display-symbol';
-import { NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
+import { NetworkType } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import * as Clipboard from 'expo-clipboard';
 // ⚠️ DİKKAT: Burada da useRouter kullanıyoruz, garanti olsun
 import { useRouter } from 'expo-router';

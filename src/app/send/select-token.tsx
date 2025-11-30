@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/constants/colors';
 
-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { AssetSelector, type Token } from '@tetherto/wdk-uikit-react-native';
 import { useKeseAssets } from '@/hooks/use-kese-assets';
 import formatAmount from '@/utils/format-amount';

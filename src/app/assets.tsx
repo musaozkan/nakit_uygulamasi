@@ -1,5 +1,6 @@
 import { FiatCurrency, pricingService } from '@/services/pricing-service';
-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
+import { AssetTicker } from '@tetherto/wdk-react-native-provider';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -62,7 +63,7 @@ export default function AssetsScreen() {
     const assetList = (await Promise.all(promises)).filter(Boolean) as Asset[];
 
     // KESE MVP: The Great Filter - Only show USDT and XAUT
-    const filteredList = assetList.filter(asset => 
+    const filteredList = assetList.filter(asset =>
       ['usdt', 'xaut'].includes(asset.id.toLowerCase())
     );
 

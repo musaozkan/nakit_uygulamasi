@@ -6,7 +6,7 @@ import { CheckCircle2, Users, Edit3 } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { toast } from 'sonner-native';
 import { useNickname } from '@/hooks/use-nickname'; // İsim servisimizi çağırdık
 
@@ -14,11 +14,11 @@ export default function JoinGoldDayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { wallet } = useWallet();
-  
+
   const params = useLocalSearchParams();
-  const { roomId, roomName, amount, asset } = params as { 
-    roomId: string; 
-    roomName: string; 
+  const { roomId, roomName, amount, asset } = params as {
+    roomId: string;
+    roomName: string;
     amount: string;
     asset: string;
   };
@@ -46,11 +46,11 @@ export default function JoinGoldDayScreen() {
       await GoldDayService.joinRoom(roomId, {
         address: wallet.address,
         nickname: entryName, // <-- Kullanıcının girdiği isim
-        avatarId: 1 
+        avatarId: 1
       });
 
       toast.success('Hayırlı olsun, güne katıldın!');
-      
+
       // router.replace({
       //   pathname: '/gold-day/lobby',
       //   params: { roomId }
@@ -78,7 +78,7 @@ export default function JoinGoldDayScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Header title="Davetiye Var!" />
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
@@ -96,9 +96,9 @@ export default function JoinGoldDayScreen() {
           <View style={styles.card}>
             <Text style={styles.roomLabel}>GÜN ADI</Text>
             <Text style={styles.roomName}>{roomName}</Text>
-            
+
             <View style={styles.divider} />
-            
+
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.roomLabel}>KATKI PAYI</Text>
@@ -137,8 +137,8 @@ export default function JoinGoldDayScreen() {
       </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity 
-          style={styles.joinButton} 
+        <TouchableOpacity
+          style={styles.joinButton}
           onPress={handleJoin}
           disabled={isJoining}
         >
@@ -146,9 +146,9 @@ export default function JoinGoldDayScreen() {
             {isJoining ? 'Katılınıyor...' : 'Onayla ve Katıl'}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.cancelButton} 
+
+        <TouchableOpacity
+          style={styles.cancelButton}
           onPress={() => router.back()}
           disabled={isJoining}
         >
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: 'bold', color: colors.text, marginBottom: 8 },
   subtitle: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
-  
+
   card: {
     width: '100%', backgroundColor: colors.card, borderRadius: 20, padding: 20,
     borderWidth: 1, borderColor: colors.border, marginBottom: 24
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
 
   infoBox: { flexDirection: 'row', marginTop: 10, gap: 12, paddingHorizontal: 12 },
   infoText: { fontSize: 13, color: colors.textSecondary, flex: 1, lineHeight: 18 },
-  
+
   footer: { padding: 20 },
   joinButton: {
     backgroundColor: colors.primary, height: 56, borderRadius: 16,

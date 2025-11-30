@@ -1,5 +1,5 @@
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
@@ -46,7 +46,7 @@ export default function CompleteScreen() {
 
   const handleGoToWallet = () => {
     if (!walletCreated) return;
-    
+
     // Geçmişi sil, direkt Cüzdan ana sayfasına at
     navigation.dispatch(
       CommonActions.reset({
@@ -60,17 +60,17 @@ export default function CompleteScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      
+
       <View style={styles.content}>
         {/* İKON ALANI (Animasyonlu gibi dursa yeter) */}
         <View style={styles.iconContainer}>
           {isProcessing ? (
             <View style={styles.loadingCircle}>
-               <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
             <View style={styles.successCircle}>
-               <PartyPopper size={64} color={colors.black} />
+              <PartyPopper size={64} color={colors.black} />
             </View>
           )}
         </View>
@@ -79,7 +79,7 @@ export default function CompleteScreen() {
         <Text style={styles.title}>
           {isProcessing ? 'Kese Hazırlanıyor...' : 'Hayırlı Olsun! 🧿'}
         </Text>
-        
+
         <Text style={styles.subtitle}>
           {isProcessing
             ? 'Senin için sağlam, şifreli ve güvenli dijital kasanı oluşturuyoruz. Birkaç saniye sürer...'

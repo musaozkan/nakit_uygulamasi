@@ -1,4 +1,5 @@
 import avatarOptions, { getAvatar } from '@/config/avatar-options';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useEffect, useState } from 'react';
 
 const useWalletAvatar = () => {

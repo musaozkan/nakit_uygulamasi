@@ -2,7 +2,7 @@ import Header from '@/components/header';
 import { colors } from '@/constants/colors';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 import { GoldDayService } from '@/services/gold-day-service';
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { Check, ChevronRight } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -62,7 +62,7 @@ export default function CreateGoldDayScreen() {
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : 'Oda oluşturulamadı';
-      
+
       // Navigate to failed screen
       router.push({
         pathname: '/transaction/failed',
@@ -135,7 +135,7 @@ export default function CreateGoldDayScreen() {
               onChangeText={(text) => {
                 // Allow only numbers, dots and commas
                 const cleaned = text.replace(/[^0-9.,]/g, '');
-                
+
                 // Replace comma with dot
                 const normalized = cleaned.replace(',', '.');
 

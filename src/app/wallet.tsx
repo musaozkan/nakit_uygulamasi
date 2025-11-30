@@ -1,5 +1,6 @@
 import { BalanceLoader } from '@/components/BalanceLoader';
-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
+import { AssetTicker } from '@tetherto/wdk-react-native-provider';
 import { Balance } from '@tetherto/wdk-uikit-react-native';
 import { useRouter } from 'expo-router';
 import { useKeseAssets } from '@/hooks/use-kese-assets';
@@ -58,8 +59,8 @@ type Transaction = {
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
-  const { wallet, isUnlocked, refreshWalletBalance, addresses, transactions: walletTransactions } = useWallet();
+
+  const { wallet, isUnlocked, refreshWalletBalance, addresses, transactions: walletTransactions, balances } = useWallet();
   const { goldAsset, cashAsset, totalValue, isLoading } = useKeseAssets();
   const [refreshing, setRefreshing] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
@@ -70,6 +71,22 @@ export default function WalletScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const hasWallet = !!wallet;
+
+  // Helper to get balance for a specific symbol
+  const getBalanceForSymbol = (symbol: string) => {
+    const balanceItem = balances.list.find(b => b.symbol === symbol);
+    if (!balanceItem) return { balance: 0, formatted: '0.00' };
+
+    const balanceInWei = BigInt(balanceItem.balance);
+    const decimals = balanceItem.decimals || 18;
+    const divisor = BigInt(10 ** decimals);
+    const balanceInEth = Number(balanceInWei) / Number(divisor);
+
+    return {
+      balance: balanceInEth,
+      formatted: balanceInEth.toFixed(4)
+    };
+  };
 
   useEffect(() => {
     if (hasWallet && !isUnlocked) {
@@ -93,7 +110,7 @@ export default function WalletScreen() {
     const result = await Promise.all(
       walletTransactions.list
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5) 
+        .slice(0, 5)
         .map(async (tx, index) => {
           if (!['USDT', 'USD₮', 'XAUT', 'XAU₮'].includes(tx.token)) return null;
 
@@ -104,7 +121,7 @@ export default function WalletScreen() {
 
           let fiatAmount = 0;
           try {
-             fiatAmount = await pricingService.getFiatValue(
+            fiatAmount = await pricingService.getFiatValue(
               amount,
               tx.token as AssetTicker,
               FiatCurrency.USD
@@ -136,10 +153,10 @@ export default function WalletScreen() {
     router.push({
       pathname: '/send/attach-jewelry',
       params: {
-        scannedAddress: '0xMockAddressForTesting123456789', 
+        scannedAddress: '0xMockAddressForTesting123456789',
       },
     });
-    
+
     /* 
     router.push({
       pathname: '/scan-qr',
@@ -154,11 +171,11 @@ export default function WalletScreen() {
 
   const handleSeeAllActivity = () => router.push('/activity');
   const handleCreateWallet = () => router.push('/wallet-setup/name-wallet');
-  
+
   const handleSettingsPress = () => {
     router.push('/settings');
   };
-  
+
   const handleStartGoldDay = () => {
     router.push('/gold-day/create');
   };
@@ -200,38 +217,31 @@ export default function WalletScreen() {
     });
   }, []);
 
-  const renderAssetCard = (title: string, asset: ReturnType<typeof useKeseAssets>['goldAsset'], isGold: boolean) => {
+  const renderAssetCard = (title: string, symbol: 'XAUT' | 'USDT', isGold: boolean) => {
     // 1 XAUT = ~31.1035 Grams (Troy Ounce to Grams)
     const GRAMS_PER_XAUT = 31.1035;
-    
-    let displayAmount = '0.00';
-    let displayUnit = isGold ? 'XAUT' : 'USDT';
 
-    if (asset) {
-      if (isGold && showGrams) {
-        // Convert to Grams
-        const rawAmount = asset.balance;
-        displayAmount = (rawAmount * GRAMS_PER_XAUT).toFixed(2);
-        displayUnit = 'Gram Altın';
-      } else {
-        // Show original formatted balance
-        displayAmount = asset.formattedBalance;
-        displayUnit = asset.symbol || (isGold ? 'XAUT' : 'USDT');
-      }
-    } else if (isGold && showGrams) {
-       displayUnit = 'Gram Altın';
+    const balanceData = getBalanceForSymbol(symbol);
+    let displayAmount = balanceData.formatted;
+    let displayUnit: string = symbol;
+
+    if (isGold && showGrams) {
+      // Convert to Grams
+      const rawAmount = balanceData.balance;
+      displayAmount = (rawAmount * GRAMS_PER_XAUT).toFixed(2);
+      displayUnit = 'Gram Altın';
     }
 
     return (
       <TouchableOpacity
         style={[styles.keseCard, isGold && styles.goldCard]}
         onPress={() => {
-          if (wallet && asset) {
+          if (wallet) {
             router.push({
               pathname: '/token-details',
               params: {
                 walletId: wallet.id,
-                token: asset.id.toUpperCase(),
+                token: symbol,
               },
             });
           }
@@ -240,17 +250,17 @@ export default function WalletScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={[styles.iconContainer, { backgroundColor: isGold ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.1)' }]}>
-             <Image 
-               source={asset?.config?.icon || (isGold ? assetConfig.xaut.icon : assetConfig.usdt.icon)} 
-               style={styles.cardIcon} 
-             />
+            <Image
+              source={isGold ? assetConfig.xaut.icon : assetConfig.usdt.icon}
+              style={styles.cardIcon}
+            />
           </View>
           <Text style={[styles.cardTitle, isGold && { color: colors.gold }]}>{title}</Text>
-          
+
           {/* Gold Unit Toggle Button */}
           {isGold && (
-            <TouchableOpacity 
-              style={styles.unitToggleButton} 
+            <TouchableOpacity
+              style={styles.unitToggleButton}
               onPress={() => setShowGrams(!showGrams)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
@@ -258,13 +268,13 @@ export default function WalletScreen() {
             </TouchableOpacity>
           )}
         </View>
-        
+
         <View style={styles.cardBalance}>
           <Text style={[styles.cardAmount, isGold && { color: colors.gold }]}>
             {hideBalances ? '****' : displayAmount} {displayUnit}
           </Text>
           <Text style={styles.cardFiat}>
-            {hideBalances ? '****' : (asset ? formatAmount(asset.fiatValue) : '0.00')} USD
+            {hideBalances ? '****' : '0.00'} USD
           </Text>
         </View>
       </TouchableOpacity>
@@ -312,17 +322,15 @@ export default function WalletScreen() {
           useNativeDriver: false,
         })}
         refreshControl={
-          mounted ? (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-              title="Yenilemek için çek"
-              titleColor={colors.textSecondary}
-              progressViewOffset={insets.top}
-            />
-          ) : undefined
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            title="Yenilemek için çek"
+            titleColor={colors.textSecondary}
+            progressViewOffset={insets.top}
+          />
         }
       >
         {!hasWallet && !isLoading ? (
@@ -356,7 +364,7 @@ export default function WalletScreen() {
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Hızlı İşlemler</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionsScroll}>
-            
+
             {/* Gün Başlat */}
             <TouchableOpacity style={styles.quickActionButton} onPress={handleStartGoldDay}>
               <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255, 215, 0, 0.15)' }]}>
@@ -401,15 +409,15 @@ export default function WalletScreen() {
         </View>
 
         <View style={styles.cardsContainer}>
-          {renderAssetCard('KESE (Altın)', goldAsset, true)}
-          {renderAssetCard('Nakit (Dolar)', cashAsset, false)}
+          {renderAssetCard('KESE (Altın)', 'XAUT', true)}
+          {renderAssetCard('Nakit (Dolar)', 'USDT', false)}
         </View>
 
         <View style={styles.activitySection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Son Hareketler</Text>
-            {walletTransactions.isLoading && (
-               <ActivityIndicator size="small" color={colors.primary} />
+            {walletTransactions?.isLoading && (
+              <ActivityIndicator size="small" color={colors.primary} />
             )}
           </View>
 
@@ -444,7 +452,7 @@ export default function WalletScreen() {
       </ScrollView>
 
       {/* Partial Masking Blocker */}
-      <View 
+      <View
         style={{
           position: 'absolute',
           bottom: 0,
@@ -453,14 +461,14 @@ export default function WalletScreen() {
           height: insets.bottom + 10 + 35, // Safe area + margin + half tab bar height
           backgroundColor: colors.background,
           zIndex: 90,
-        }} 
+        }}
       />
 
       {/* ALT MENÜ */}
       <View style={[styles.bottomBarContainer, { paddingBottom: insets.bottom }]}>
         <View style={styles.bottomBar}>
-          <TouchableOpacity 
-            style={styles.tabItem} 
+          <TouchableOpacity
+            style={styles.tabItem}
             onPress={() => scrollY && (scrollY as any).setValue(0)}
           >
             <Home size={26} color={colors.primary} />
@@ -475,7 +483,7 @@ export default function WalletScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </View >
   );
 }
 
@@ -562,7 +570,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: 1,
   },
-  
+
   // HIZLI İŞLEMLER
   quickActionsContainer: {
     marginBottom: 24,
@@ -616,7 +624,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   goldCard: {
-    backgroundColor: 'rgba(255, 215, 0, 0.05)', 
+    backgroundColor: 'rgba(255, 215, 0, 0.05)',
     borderColor: colors.gold,
   },
   cardHeader: {
@@ -661,8 +669,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   sectionHeaderRow: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
@@ -735,7 +743,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 100, 
+    zIndex: 100,
   },
   bottomBar: {
     flexDirection: 'row',
@@ -745,7 +753,7 @@ const styles = StyleSheet.create({
     width: '90%',
     height: 70,
     borderRadius: 35,
-    paddingHorizontal: 40, 
+    paddingHorizontal: 40,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 10,
@@ -759,7 +767,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    minWidth: 50, 
+    minWidth: 50,
   },
   tabLabel: {
     fontSize: 11,

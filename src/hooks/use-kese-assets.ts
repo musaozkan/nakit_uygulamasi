@@ -2,7 +2,8 @@ import { AssetConfig, assetConfig } from '@/config/assets';
 import { FiatCurrency, pricingService } from '@/services/pricing-service';
 import formatTokenAmount from '@/utils/format-token-amount';
 import getDisplaySymbol from '@/utils/get-display-symbol';
-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
+import { AssetTicker } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useEffect, useState } from 'react';
 
 export type KeseAsset = {
@@ -73,7 +74,7 @@ export function useKeseAssets() {
       });
 
       const result = (await Promise.all(promises)).filter(Boolean) as KeseAsset[];
-      
+
       // Sort: XAUT first, then USDT
       result.sort((a, b) => {
         if (a.id.includes('XAUT')) return -1;
@@ -90,7 +91,7 @@ export function useKeseAssets() {
 
   const goldAsset = assets.find(a => a.id === 'XAUT' || a.id === 'XAU₮');
   const cashAsset = assets.find(a => a.id === 'USDT' || a.id === 'USD₮');
-  
+
   const totalValue = assets.reduce((sum, asset) => sum + asset.fiatValue, 0);
 
   return {

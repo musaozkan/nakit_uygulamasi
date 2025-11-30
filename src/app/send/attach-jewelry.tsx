@@ -1,7 +1,7 @@
 import Header from '@/components/header';
 import { colors } from '@/constants/colors';
 import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
-import { useWallet } from '@tetherto/wdk-react-native-provider';
+import { useWallet } from '@/providers/KeseWalletProvider';
 import { useLocalSearchParams } from 'expo-router';
 import { Check, ChevronRight, Gift } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -68,8 +68,8 @@ export default function AttachJewelryScreen() {
           <View style={styles.addressContainer}>
             <Text style={styles.addressLabel}>Alıcı Adresi:</Text>
             <Text style={styles.addressValue}>
-              {scannedAddress 
-                ? `${scannedAddress.slice(0, 10)}...${scannedAddress.slice(-10)}` 
+              {scannedAddress
+                ? `${scannedAddress.slice(0, 10)}...${scannedAddress.slice(-10)}`
                 : 'Adres Yok'}
             </Text>
           </View>
@@ -110,7 +110,7 @@ export default function AttachJewelryScreen() {
               onChangeText={(text) => {
                 // Allow only numbers, dots and commas
                 const cleaned = text.replace(/[^0-9.,]/g, '');
-                
+
                 // Replace comma with dot
                 const normalized = cleaned.replace(',', '.');
 
