@@ -1,19 +1,23 @@
 import Header from '@/components/header';
 import { colors } from '@/constants/colors';
+import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 import { GoldDayRoom, GoldDayService } from '@/services/gold-day-service';
 import { useLocalSearchParams } from 'expo-router';
-import { Copy, Share2, Users } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { QRCode } from '@tetherto/wdk-uikit-react-native'; // WDK QR Bileşeni
 import * as Clipboard from 'expo-clipboard';
+import { Copy, Share2, Users, Edit2, Check } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { QRCode } from '@tetherto/wdk-uikit-react-native';
 import { toast } from 'sonner-native';
 
 export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
+  const router = useDebouncedNavigation();
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const [room, setRoom] = useState<GoldDayRoom | null>(null);
+  const [isEditingDay, setIsEditingDay] = useState(false);
+  const [editedDay, setEditedDay] = useState('');
 
   useEffect(() => {
     loadRoom();
@@ -22,8 +26,39 @@ export default function LobbyScreen() {
   const loadRoom = async () => {
     if (roomId) {
       const data = await GoldDayService.getRoom(roomId);
-      if (data) setRoom(data);
+      if (data) {
+        setRoom(data);
+        setEditedDay(data.meetingDay || '');
+      }
     }
+  };
+
+  const handleStartDay = async () => {
+    if (!room) return;
+    
+    Alert.alert(
+      "Günü Başlat",
+      "Günü başlattıktan sonra katılımcı ekleyemezsin. Sadece toplanma gününü değiştirebilirsin. Emin misin?",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        { 
+          text: "Başlat", 
+          onPress: async () => {
+            await GoldDayService.startRoom(room.id);
+            await loadRoom();
+            toast.success("Gün başarıyla başlatıldı!");
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSaveDay = async () => {
+    if (!room) return;
+    await GoldDayService.updateMeetingDay(room.id, editedDay);
+    await loadRoom();
+    setIsEditingDay(false);
+    toast.success("Toplanma günü güncellendi");
   };
 
   // Demo için: Ekrana dokunarak sahte kullanıcı ekle
@@ -53,9 +88,11 @@ export default function LobbyScreen() {
     asset: room.asset
   });
 
+  const isActive = room.status === 'active';
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header title="Bekleme Salonu" />
+      <Header title={isActive ? room.name : "Gününüz Başlatılmıştır"} />
 
       <ScrollView contentContainerStyle={styles.content}>
         
@@ -65,31 +102,67 @@ export default function LobbyScreen() {
           <Text style={styles.roomDetail}>
             Hedef: <Text style={styles.highlight}>{room.amount} {room.asset}</Text> / {room.frequency === 'weekly' ? 'Haftalık' : 'Aylık'}
           </Text>
+          
+          {/* Toplanma Günü Düzenleme */}
+          <View style={styles.dayContainer}>
+            <Text style={styles.dayLabel}>Toplanma Günü:</Text>
+            {isEditingDay ? (
+              <View style={styles.editDayContainer}>
+                <View style={styles.daysContainer}>
+                  {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day) => {
+                    const isSelected = editedDay === day;
+                    return (
+                      <TouchableOpacity
+                        key={day}
+                        style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
+                        onPress={() => setEditedDay(day)}
+                      >
+                        <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>{day}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity onPress={handleSaveDay} style={styles.saveButton}>
+                  <Check size={20} color={colors.black} />
+                  <Text style={styles.saveButtonText}>Kaydet</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.dayRow}>
+                <Text style={styles.dayValue}>{room.meetingDay}</Text>
+                <TouchableOpacity onPress={() => setIsEditingDay(true)} style={styles.editIcon}>
+                  <Edit2 size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* QR KOD ALANI */}
-        <View style={styles.qrSection}>
-          <View style={styles.qrWrapper}>
-            <QRCode 
-                value={qrPayload} 
-                size={220} 
-                color={colors.black} 
-                backgroundColor={colors.white}
-            />
+        {/* QR KOD ALANI (Sadece Lobby modunda göster) */}
+        {!isActive && (
+          <View style={styles.qrSection}>
+            <View style={styles.qrWrapper}>
+              <QRCode 
+                  value={qrPayload} 
+                  size={220} 
+                  color={colors.black} 
+                  backgroundColor={colors.white}
+              />
+            </View>
+            <Text style={styles.qrHint}>Arkadaşın bu kodu okutarak katılabilir</Text>
+            
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.actionBtn} onPress={handleCopyLink}>
+                <Copy size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Link Kopyala</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn}>
+                <Share2 size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Paylaş</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.qrHint}>Arkadaşın bu kodu okutarak katılabilir</Text>
-          
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={handleCopyLink}>
-              <Copy size={20} color={colors.primary} />
-              <Text style={styles.actionText}>Link Kopyala</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <Share2 size={20} color={colors.primary} />
-              <Text style={styles.actionText}>Paylaş</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        )}
 
         {/* KATILIMCI LİSTESİ */}
         <View style={styles.participantsSection}>
@@ -113,20 +186,24 @@ export default function LobbyScreen() {
             </View>
           ))}
 
-          {/* DEMO BUTONU - SADECE GELİŞTİRME İÇİN */}
-          <TouchableOpacity style={styles.demoButton} onPress={handleSimulateJoin}>
-            <Text style={styles.demoText}>+ (Demo) Katılımcı Ekle</Text>
-          </TouchableOpacity>
+          {/* DEMO BUTONU - SADECE LOBBY MODUNDA */}
+          {!isActive && (
+            <TouchableOpacity style={styles.demoButton} onPress={handleSimulateJoin}>
+              <Text style={styles.demoText}>+ (Demo) Katılımcı Ekle</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </ScrollView>
 
-      {/* BAŞLAT BUTONU */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity style={styles.startButton}>
-          <Text style={styles.startButtonText}>Herkes Tamam, Günü Başlat</Text>
-        </TouchableOpacity>
-      </View>
+      {/* BAŞLAT BUTONU (Sadece Lobby modunda) */}
+      {!isActive && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+          <TouchableOpacity style={styles.startButton} onPress={handleStartDay}>
+            <Text style={styles.startButtonText}>Tamamla (Günü Başlat)</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -281,5 +358,78 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.black,
+  },
+  dayContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+    backgroundColor: colors.cardDark,
+    padding: 12,
+    borderRadius: 12,
+    width: '100%',
+  },
+  dayLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  editIcon: {
+    padding: 4,
+  },
+  editDayContainer: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
+  },
+  daysContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  dayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dayButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  dayTextSelected: {
+    color: colors.black,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  saveButtonText: {
+    color: colors.black,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

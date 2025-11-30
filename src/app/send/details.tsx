@@ -17,7 +17,6 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -308,6 +307,15 @@ export default function SendDetailsScreen() {
     amountSectionYPosition.current = event.nativeEvent.layout.y;
   }, []);
 
+  const getTransactionAmout = useCallback(() => {
+    const numericAmount = parseFloat(amount.replace(/,/g, ''));
+    if (inputMode === 'fiat' && tokenPrice > 0) {
+      return formatUSDValue(numericAmount);
+    }
+
+    return formatTokenAmount(parseFloat(amount || '0'), tokenSymbol as AssetTicker);
+  }, [inputMode, tokenPrice, amount, tokenSymbol]);
+
   const validateTransaction = useCallback(() => {
     if (!recipientAddress) {
       Alert.alert('Error', 'Please enter a recipient address');
@@ -357,12 +365,28 @@ export default function SendDetailsScreen() {
       );
 
       setTransactionResult({ txId: sendResult });
-      setShowConfirmation(true);
+      
+      // Navigate to success screen
+      router.replace({
+        pathname: '/transaction/success',
+        params: {
+          amount: getTransactionAmout(),
+          symbol: inputMode === 'token' ? getDisplaySymbol(tokenSymbol) : 'USD',
+          txHash: sendResult.hash
+        }
+      });
+      
     } catch (error) {
       console.error('Transaction failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
 
-      Alert.alert('Transaction Failed', errorMessage, [{ text: 'OK' }]);
+      // Navigate to failed screen
+      router.push({
+        pathname: '/transaction/failed',
+        params: {
+          reason: errorMessage
+        }
+      });
 
       setTransactionResult({ error: errorMessage });
     } finally {
@@ -378,12 +402,12 @@ export default function SendDetailsScreen() {
     refreshWalletBalance,
     inputMode,
     tokenPrice,
+    getTransactionAmout,
+    tokenSymbol,
+    router
   ]);
 
-  const handleConfirmSend = useCallback(async () => {
-    setShowConfirmation(false);
-    router.replace('/wallet');
-  }, [router]);
+  // Removed handleConfirmSend as it is no longer needed
 
   const balanceDisplay = useMemo(() => {
     if (inputMode === 'token') {
@@ -403,14 +427,7 @@ export default function SendDetailsScreen() {
     return formatTokenAmount(value, token);
   };
 
-  const getTransactionAmout = useCallback(() => {
-    const numericAmount = parseFloat(amount.replace(/,/g, ''));
-    if (inputMode === 'fiat' && tokenPrice > 0) {
-      return formatUSDValue(numericAmount);
-    }
 
-    return formatTokenAmount(parseFloat(amount || '0'), tokenSymbol as AssetTicker);
-  }, [inputMode, tokenPrice, amount, tokenSymbol]);
 
   const isUseMaxDisabled = useMemo(() => {
     return tokenId.toLowerCase() !== 'btc' && gasEstimate.fee === undefined;
@@ -567,51 +584,6 @@ export default function SendDetailsScreen() {
       </KeyboardAvoidingView>
 
       {/* Confirmation Modal */}
-      <Modal
-        visible={showConfirmation}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowConfirmation(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Transaction Submitted</Text>
-            <Text style={styles.modalDescription}>
-              Your transaction has been submitted and is now processing.
-            </Text>
-
-            {transactionResult?.txId && (
-              <View style={styles.transactionSummary}>
-                <Text style={styles.summaryLabel}>Fee:</Text>
-                <Text style={styles.summaryValue}>
-                  {getFeeFromTransactionResult(transactionResult, tokenSymbol as AssetTicker)}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.transactionSummary}>
-              <Text style={styles.summaryLabel}>Amount:</Text>
-              <Text style={styles.summaryValue}>{getTransactionAmout()}</Text>
-            </View>
-
-            <View style={styles.transactionSummary}>
-              <Text style={styles.summaryLabel}>To:</Text>
-              <Text style={styles.summaryValue} numberOfLines={1} ellipsizeMode="middle">
-                {recipientAddress}
-              </Text>
-            </View>
-
-            <View style={styles.transactionSummary}>
-              <Text style={styles.summaryLabel}>Network:</Text>
-              <Text style={styles.summaryValue}>{networkName}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.modalButton} onPress={handleConfirmSend}>
-              <Text style={styles.modalButtonText}>Close & Return to Main Screen</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -748,52 +720,6 @@ const styles = StyleSheet.create({
   },
   sendButtonTextDisabled: {
     color: colors.textSecondary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
-    marginHorizontal: 20,
-    width: '90%',
-    maxWidth: 400,
-    marginTop: 12,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  modalDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  modalButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  modalButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  transactionDetails: {
-    backgroundColor: colors.cardDark,
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 16,
   },
   transactionLabel: {
     fontSize: 12,

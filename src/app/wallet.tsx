@@ -13,7 +13,11 @@ import {
   QrCode,
   PlusCircle,
   Home,
-  UserPlus, // <-- YENİ İKON EKLENDİ
+  UserPlus,
+  Eye,
+  EyeOff,
+  ArrowLeftRight,
+  Calendar,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -58,6 +62,8 @@ export default function WalletScreen() {
   const { wallet, isUnlocked, refreshWalletBalance, addresses, transactions: walletTransactions } = useWallet();
   const { goldAsset, cashAsset, totalValue, isLoading } = useKeseAssets();
   const [refreshing, setRefreshing] = useState(false);
+  const [hideBalances, setHideBalances] = useState(false);
+  const [showGrams, setShowGrams] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [mounted, setMounted] = useState(false);
   const avatar = useWalletAvatar();
@@ -125,8 +131,27 @@ export default function WalletScreen() {
   };
 
   const handleSendPress = () => router.push('/send/select-token');
-  // QR Okuyucu hem ödeme hem katılma için kullanılıyor
-  const handleQRPress = () => router.push('/scan-qr'); 
+  const handleQRPress = () => {
+    // BYPASS: Doğrudan Takı Tak ekranına git (Test için)
+    router.push({
+      pathname: '/send/attach-jewelry',
+      params: {
+        scannedAddress: '0xMockAddressForTesting123456789', 
+      },
+    });
+    
+    /* 
+    router.push({
+      pathname: '/scan-qr',
+      params: {
+        title: 'Takı Tak',
+        subtitle: 'Düğün veya nişan sahibinin QR kodunu okut.',
+        returnRoute: '/send/attach-jewelry',
+      },
+    });
+    */
+  };
+
   const handleSeeAllActivity = () => router.push('/activity');
   const handleCreateWallet = () => router.push('/wallet-setup/name-wallet');
   
@@ -140,7 +165,17 @@ export default function WalletScreen() {
 
   // Güne Katıl da QR açar, akıllı QR ekranımız davetiyeyi tanır
   const handleJoinGoldDay = () => {
-    router.push('/gold-day/join');
+    router.push({
+      pathname: '/scan-qr',
+      params: {
+        title: 'Güne Katıl',
+        subtitle: 'Arkadaşının gösterdiği Gün Davetiyesi QR kodunu okut.',
+      },
+    });
+  };
+
+  const handleGoldDayList = () => {
+    router.push('/gold-day/list');
   };
 
   const handleRefresh = async () => {
@@ -166,6 +201,27 @@ export default function WalletScreen() {
   }, []);
 
   const renderAssetCard = (title: string, asset: ReturnType<typeof useKeseAssets>['goldAsset'], isGold: boolean) => {
+    // 1 XAUT = ~31.1035 Grams (Troy Ounce to Grams)
+    const GRAMS_PER_XAUT = 31.1035;
+    
+    let displayAmount = '0.00';
+    let displayUnit = isGold ? 'XAUT' : 'USDT';
+
+    if (asset) {
+      if (isGold && showGrams) {
+        // Convert to Grams
+        const rawAmount = asset.balance;
+        displayAmount = (rawAmount * GRAMS_PER_XAUT).toFixed(2);
+        displayUnit = 'Gram Altın';
+      } else {
+        // Show original formatted balance
+        displayAmount = asset.formattedBalance;
+        displayUnit = asset.symbol || (isGold ? 'XAUT' : 'USDT');
+      }
+    } else if (isGold && showGrams) {
+       displayUnit = 'Gram Altın';
+    }
+
     return (
       <TouchableOpacity
         style={[styles.keseCard, isGold && styles.goldCard]}
@@ -184,17 +240,31 @@ export default function WalletScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={[styles.iconContainer, { backgroundColor: isGold ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.1)' }]}>
-             {asset?.config?.icon && <Image source={asset.config.icon} style={styles.cardIcon} />}
+             <Image 
+               source={asset?.config?.icon || (isGold ? assetConfig.xaut.icon : assetConfig.usdt.icon)} 
+               style={styles.cardIcon} 
+             />
           </View>
           <Text style={[styles.cardTitle, isGold && { color: colors.gold }]}>{title}</Text>
+          
+          {/* Gold Unit Toggle Button */}
+          {isGold && (
+            <TouchableOpacity 
+              style={styles.unitToggleButton} 
+              onPress={() => setShowGrams(!showGrams)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <ArrowLeftRight size={16} color={colors.gold} />
+            </TouchableOpacity>
+          )}
         </View>
         
         <View style={styles.cardBalance}>
           <Text style={[styles.cardAmount, isGold && { color: colors.gold }]}>
-            {asset ? asset.formattedBalance : '0.00'} {asset?.symbol || (isGold ? 'XAUT' : 'USDT')}
+            {hideBalances ? '****' : displayAmount} {displayUnit}
           </Text>
           <Text style={styles.cardFiat}>
-            {asset ? formatAmount(asset.fiatValue) : '0.00'} USD
+            {hideBalances ? '****' : (asset ? formatAmount(asset.fiatValue) : '0.00')} USD
           </Text>
         </View>
       </TouchableOpacity>
@@ -261,13 +331,24 @@ export default function WalletScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.totalBalanceContainer}>
-            <Text style={styles.totalBalanceLabel}>Toplam Varlık</Text>
-            <Balance
-              value={totalValue}
-              currency="USD"
-              isLoading={isLoading}
-              Loader={BalanceLoader}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <TouchableOpacity onPress={() => setHideBalances(!hideBalances)}>
+                <Text style={[styles.totalBalanceLabel, { marginBottom: 0 }]}>Toplam Varlık</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setHideBalances(!hideBalances)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                {hideBalances ? <EyeOff size={18} color={colors.textSecondary} /> : <Eye size={18} color={colors.textSecondary} />}
+              </TouchableOpacity>
+            </View>
+            {isLoading ? (
+              <BalanceLoader />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                <Text style={styles.balanceText}>
+                  {hideBalances ? '****' : formatAmount(totalValue)}
+                </Text>
+                <Text style={styles.currencyText}> USD</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -290,6 +371,14 @@ export default function WalletScreen() {
                 <UserPlus size={24} color={colors.gold} />
               </View>
               <Text style={styles.quickActionText}>Güne Katıl</Text>
+            </TouchableOpacity>
+
+            {/* YENİ EKLENEN: Gün Listesi */}
+            <TouchableOpacity style={styles.quickActionButton} onPress={handleGoldDayList}>
+              <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255, 215, 0, 0.15)' }]}>
+                <Calendar size={24} color={colors.gold} />
+              </View>
+              <Text style={styles.quickActionText}>Günlerim</Text>
             </TouchableOpacity>
 
             {/* Takı Tak */}
@@ -354,6 +443,19 @@ export default function WalletScreen() {
         </View>
       </ScrollView>
 
+      {/* Partial Masking Blocker */}
+      <View 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: insets.bottom + 10 + 35, // Safe area + margin + half tab bar height
+          backgroundColor: colors.background,
+          zIndex: 90,
+        }} 
+      />
+
       {/* ALT MENÜ */}
       <View style={[styles.bottomBarContainer, { paddingBottom: insets.bottom }]}>
         <View style={styles.bottomBar}>
@@ -362,20 +464,16 @@ export default function WalletScreen() {
             onPress={() => scrollY && (scrollY as any).setValue(0)}
           >
             <Home size={26} color={colors.primary} />
-            <Text style={[styles.tabLabel, { color: colors.primary }]}>Ana Sayfa</Text>
           </TouchableOpacity>
 
-          <View style={{ width: 70 }} />
+          <TouchableOpacity style={styles.floatingSendButton} onPress={handleSendPress} activeOpacity={0.9}>
+            <Send size={32} color={colors.black} style={{ marginLeft: -2, marginTop: 2 }} />
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={handleSettingsPress}>
             <User size={26} color={colors.textSecondary} />
-            <Text style={styles.tabLabel}>Profil</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.floatingSendButton} onPress={handleSendPress} activeOpacity={0.9}>
-          <Send size={28} color={colors.black} style={{ marginLeft: -2, marginTop: 2 }} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -670,20 +768,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   floatingSendButton: {
-    position: 'absolute',
-    bottom: 40,
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.primary,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#FFC107', // Toned down gold (Amber)
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: colors.background,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
+    borderColor: colors.background, // Keep background color to create a "cutout" effect if it overlaps slightly or looks distinct
+  },
+  balanceText: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  currencyText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  unitToggleButton: {
+    marginLeft: 'auto', // Pushes to the right
+    padding: 8,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: 12,
   },
 });

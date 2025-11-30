@@ -27,6 +27,7 @@ export default function CreateGoldDayScreen() {
   const [amount, setAmount] = useState('');
   const [selectedAsset, setSelectedAsset] = useState<'USDT' | 'XAUT'>('XAUT');
   const [frequency, setFrequency] = useState<'weekly' | 'monthly'>('monthly');
+  const [meetingDay, setMeetingDay] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   const handleCreate = async () => {
@@ -37,22 +38,38 @@ export default function CreateGoldDayScreen() {
 
     setIsCreating(true);
     try {
+      // TEST LOGIC: If name is "fail", simulate failure
+      if (name.toLowerCase() === 'fail') {
+        throw new Error('Simulated failure for testing');
+      }
+
       const room = await GoldDayService.createRoom(
         name,
         selectedAsset,
         parseFloat(amount),
         frequency,
+        meetingDay || (frequency === 'weekly' ? 'Pazartesi' : '1'), // Default if empty
         '0xHost' // Mock address if wallet not ready
       );
 
-      // Lobiye yönlendir
+      // Navigate to lobby screen
       router.replace({
         pathname: '/gold-day/lobby',
-        params: { roomId: room.id },
+        params: {
+          roomId: room.id,
+        }
       });
     } catch (error) {
       console.error(error);
-      toast.error('Oda oluşturulamadı');
+      const errorMessage = error instanceof Error ? error.message : 'Oda oluşturulamadı';
+      
+      // Navigate to failed screen
+      router.push({
+        pathname: '/transaction/failed',
+        params: {
+          reason: errorMessage
+        }
+      });
     } finally {
       setIsCreating(false);
     }
@@ -115,7 +132,21 @@ export default function CreateGoldDayScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="numeric"
               value={amount}
-              onChangeText={setAmount}
+              onChangeText={(text) => {
+                // Allow only numbers, dots and commas
+                const cleaned = text.replace(/[^0-9.,]/g, '');
+                
+                // Replace comma with dot
+                const normalized = cleaned.replace(',', '.');
+
+                // Prevent multiple dots
+                const parts = normalized.split('.');
+                if (parts.length > 2) {
+                  return; // Ignore input if more than one dot
+                }
+
+                setAmount(normalized);
+              }}
             />
             <Text style={styles.helperText}>
               {selectedAsset === 'XAUT' ? 'Örn: 0.25 (Çeyrek Altın)' : 'Örn: 100 USDT'}
@@ -138,6 +169,36 @@ export default function CreateGoldDayScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* 5. TOPLANMA GÜNÜ */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Toplanma Günü Seçin</Text>
+            <View style={styles.daysContainer}>
+              {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day) => {
+                const isSelected = meetingDay === day;
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
+                    onPress={() => setMeetingDay(day)}
+                  >
+                    <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>{day}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.helperText}>
+              Seçilen: {meetingDay ? {
+                'Pzt': 'Pazartesi',
+                'Sal': 'Salı',
+                'Çar': 'Çarşamba',
+                'Per': 'Perşembe',
+                'Cum': 'Cuma',
+                'Cmt': 'Cumartesi',
+                'Paz': 'Pazar'
+              }[meetingDay] : 'Henüz seçilmedi'}
+            </Text>
           </View>
 
         </ScrollView>
@@ -277,6 +338,34 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: colors.black,
+  },
+  daysContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  dayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dayButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  dayTextSelected: {
     color: colors.black,
   },
 });

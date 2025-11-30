@@ -25,6 +25,7 @@ export default function JoinGoldDayScreen() {
 
   const [isJoining, setIsJoining] = useState(false);
   const [entryName, setEntryName] = useState('');
+  const { nickname, saveNickname } = useNickname();
 
   const handleJoin = async () => {
     if (!wallet) return;
@@ -50,9 +51,19 @@ export default function JoinGoldDayScreen() {
 
       toast.success('Hayırlı olsun, güne katıldın!');
       
+      // router.replace({
+      //   pathname: '/gold-day/lobby',
+      //   params: { roomId }
+      // });
+
+      // Navigate to success screen
       router.replace({
-        pathname: '/gold-day/lobby',
-        params: { roomId }
+        pathname: '/transaction/success',
+        params: {
+          amount: amount,
+          symbol: asset,
+          // We don't have a txHash here since it's an API call, but we can show a success message
+        }
       });
 
     } catch (error) {

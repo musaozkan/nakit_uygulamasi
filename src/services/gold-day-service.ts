@@ -16,6 +16,7 @@ export interface GoldDayRoom {
   asset: 'USDT' | 'XAUT'; // Seçilen varlık
   amount: number; // 50
   frequency: GoldDayFrequency;
+  meetingDay: string; // "Pazartesi" or "15"
   createdAt: number;
   hostAddress: string;
   participants: Participant[];
@@ -32,6 +33,7 @@ export const GoldDayService = {
     asset: 'USDT' | 'XAUT',
     amount: number,
     frequency: GoldDayFrequency,
+    meetingDay: string,
     hostAddress: string
   ): Promise<GoldDayRoom> {
     const newRoom: GoldDayRoom = {
@@ -40,6 +42,7 @@ export const GoldDayService = {
       asset,
       amount,
       frequency,
+      meetingDay,
       createdAt: Date.now(),
       hostAddress,
       participants: [
@@ -75,6 +78,28 @@ export const GoldDayService = {
     return rooms.find(r => r.id === id);
   },
   
+  // Odayı başlat (Status: active)
+  async startRoom(roomId: string) {
+    const rooms = await this.getRooms();
+    const roomIndex = rooms.findIndex(r => r.id === roomId);
+    if (roomIndex === -1) return null;
+
+    rooms[roomIndex].status = 'active';
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+    return rooms[roomIndex];
+  },
+
+  // Toplanma gününü güncelle
+  async updateMeetingDay(roomId: string, newDay: string) {
+    const rooms = await this.getRooms();
+    const roomIndex = rooms.findIndex(r => r.id === roomId);
+    if (roomIndex === -1) return null;
+
+    rooms[roomIndex].meetingDay = newDay;
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+    return rooms[roomIndex];
+  },
+
   // (Demo için) Odaya sahte katılımcı ekle
   async addMockParticipant(roomId: string, name: string) {
     const rooms = await this.getRooms();

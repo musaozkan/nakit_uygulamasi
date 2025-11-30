@@ -92,13 +92,15 @@ export default function ScanQRScreen() {
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <X size={24} color="#FF6501" />
+          <X size={24} color={colors.danger} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.titleSection}>
-        <Text style={styles.title}>Kodu Okut</Text>
-        <Text style={styles.subtitle}>Cüzdan adresi veya Gün Davetiyesi okutabilirsin.</Text>
+        <Text style={styles.title}>{params.title || 'Kodu Okut'}</Text>
+        <Text style={styles.subtitle}>
+          {params.subtitle || 'Cüzdan adresi veya Gün Davetiyesi okutabilirsin.'}
+        </Text>
       </View>
 
       <View style={styles.cameraContainer}>

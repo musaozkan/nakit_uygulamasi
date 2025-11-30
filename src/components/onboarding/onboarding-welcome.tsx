@@ -21,13 +21,7 @@ export const OnBoardingWelcome: React.FC<Props> = ({ title, subtitle, actionButt
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.illustrationContainer}>
-          <Image
-            source={require('../../../assets/images/wdk-logo.png')}
-            style={styles.wdkLogo}
-            resizeMode="contain"
-          />
-        </View>
+
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -84,15 +78,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
-  illustrationContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  wdkLogo: {
-    width: 280,
-    height: 280,
-  },
+
   title: {
     fontSize: 28,
     fontWeight: 'bold',
