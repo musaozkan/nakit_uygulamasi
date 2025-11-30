@@ -1,31 +1,32 @@
 import { BalanceLoader } from '@/components/BalanceLoader';
 import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
 import { Balance } from '@tetherto/wdk-uikit-react-native';
-import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
+import { useRouter } from 'expo-router';
 import { useKeseAssets } from '@/hooks/use-kese-assets';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Palette,
-  QrCode,
   Settings,
-  Shield,
-  Star,
   User,
   Send,
+  Users,
+  QrCode,
+  PlusCircle,
+  Home,
+  UserPlus, // <-- YENİ İKON EKLENDİ
 } from 'lucide-react-native';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Image,
-  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AssetConfig, assetConfig } from '../config/assets';
@@ -35,13 +36,6 @@ import formatTokenAmount from '@/utils/format-token-amount';
 import formatUSDValue from '@/utils/format-usd-value';
 import useWalletAvatar from '@/hooks/use-wallet-avatar';
 import { colors } from '@/constants/colors';
-
-type AggregatedBalance = ({
-  denomination: string;
-  balance: number;
-  usdValue: number;
-  config: AssetConfig;
-} | null)[];
 
 type Transaction = {
   id: number;
@@ -59,7 +53,8 @@ type Transaction = {
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
-  const router = useDebouncedNavigation();
+  const router = useRouter();
+  
   const { wallet, isUnlocked, refreshWalletBalance, addresses, transactions: walletTransactions } = useWallet();
   const { goldAsset, cashAsset, totalValue, isLoading } = useKeseAssets();
   const [refreshing, setRefreshing] = useState(false);
@@ -70,25 +65,21 @@ export default function WalletScreen() {
 
   const hasWallet = !!wallet;
 
-  // Redirect to authorization if wallet is not unlocked
   useEffect(() => {
     if (hasWallet && !isUnlocked) {
       router.replace('/authorize');
     }
   }, [hasWallet, isUnlocked, router]);
 
-  // Animated border opacity based on scroll position
   const borderOpacity = scrollY.interpolate({
     inputRange: [0, 50],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
-  // Get real transactions from wallet data
   const getTransactions = async () => {
     if (!walletTransactions) return [];
 
-    // Get the wallet's own addresses for comparison
     const walletAddresses = addresses
       ? Object.values(addresses).map(addr => addr?.toLowerCase())
       : [];
@@ -96,11 +87,8 @@ export default function WalletScreen() {
     const result = await Promise.all(
       walletTransactions.list
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5) // Show more transactions since we removed other sections
+        .slice(0, 5) 
         .map(async (tx, index) => {
-          // Filter out non-KESE assets from activity if desired, or keep them for history?
-          // Requirement says "Strictly support ONLY two assets". 
-          // But history might be relevant. Let's filter for consistency with the "Clean UI" goal.
           if (!['USDT', 'USD₮', 'XAUT', 'XAU₮'].includes(tx.token)) return null;
 
           const fromAddress = tx.from?.toLowerCase();
@@ -108,7 +96,6 @@ export default function WalletScreen() {
           const amount = parseFloat(tx.amount);
           const config = assetConfig[tx.token];
 
-          // Calculate fiat amount using pricing service
           let fiatAmount = 0;
           try {
              fiatAmount = await pricingService.getFiatValue(
@@ -116,9 +103,7 @@ export default function WalletScreen() {
               tx.token as AssetTicker,
               FiatCurrency.USD
             );
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) { }
 
           return {
             id: index + 1,
@@ -139,38 +124,32 @@ export default function WalletScreen() {
     return result.filter(Boolean) as Transaction[];
   };
 
-  const handleSendPress = () => {
-    router.push('/send/select-token');
-  };
-
-  const handleReceivePress = () => {
-    router.push('/receive/select-token');
-  };
-
-  const handleQRPress = () => {
-    router.push('/scan-qr');
-  };
-
-  const handleSeeAllActivity = () => {
-    router.push('/activity');
-  };
-
-  const handleCreateWallet = () => {
-    router.push('/wallet-setup/name-wallet');
-  };
-
+  const handleSendPress = () => router.push('/send/select-token');
+  // QR Okuyucu hem ödeme hem katılma için kullanılıyor
+  const handleQRPress = () => router.push('/scan-qr'); 
+  const handleSeeAllActivity = () => router.push('/activity');
+  const handleCreateWallet = () => router.push('/wallet-setup/name-wallet');
+  
   const handleSettingsPress = () => {
     router.push('/settings');
+  };
+  
+  const handleStartGoldDay = () => {
+    router.push('/gold-day/create');
+  };
+
+  // Güne Katıl da QR açar, akıllı QR ekranımız davetiyeyi tanır
+  const handleJoinGoldDay = () => {
+    router.push('/gold-day/join');
   };
 
   const handleRefresh = async () => {
     if (!wallet) return;
-
     setRefreshing(true);
     try {
       await refreshWalletBalance();
     } catch (error) {
-      console.error('Failed to refresh wallet data:', error);
+      console.error('Bakiye yenilenemedi:', error);
     } finally {
       setRefreshing(false);
     }
@@ -178,10 +157,8 @@ export default function WalletScreen() {
 
   useEffect(() => {
     getTransactions().then(setTransactions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletTransactions?.list, addresses]);
 
-  // Force component to fully mount before enabling RefreshControl on iOS
   useEffect(() => {
     requestAnimationFrame(() => {
       setMounted(true);
@@ -203,6 +180,7 @@ export default function WalletScreen() {
             });
           }
         }}
+        activeOpacity={0.9}
       >
         <View style={styles.cardHeader}>
           <View style={[styles.iconContainer, { backgroundColor: isGold ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.1)' }]}>
@@ -225,7 +203,7 @@ export default function WalletScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Üst Bar */}
       <Animated.View
         style={[
           styles.header,
@@ -242,7 +220,10 @@ export default function WalletScreen() {
           <View style={styles.walletIcon}>
             <Text style={styles.walletIconText}>{avatar}</Text>
           </View>
-          <Text style={styles.walletName}>{wallet?.name || 'KESE Wallet'}</Text>
+          <View>
+            <Text style={styles.greetingText}>Hoşgeldin,</Text>
+            <Text style={styles.walletName}>{wallet?.name || 'Misafir'}</Text>
+          </View>
         </View>
 
         <View style={styles.headerActions}>
@@ -257,7 +238,6 @@ export default function WalletScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
-        scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: false,
         })}
@@ -268,29 +248,20 @@ export default function WalletScreen() {
               onRefresh={handleRefresh}
               tintColor={colors.primary}
               colors={[colors.primary]}
-              title="Pull to refresh"
+              title="Yenilemek için çek"
               titleColor={colors.textSecondary}
               progressViewOffset={insets.top}
             />
-          ) : (
-            <RefreshControl
-              refreshing={false}
-              onRefresh={() => {}}
-              tintColor={colors.white}
-              colors={[colors.white]}
-              progressViewOffset={0}
-            />
-          )
+          ) : undefined
         }
       >
-        {/* Total Balance */}
         {!hasWallet && !isLoading ? (
           <TouchableOpacity onPress={handleCreateWallet} style={styles.createWalletContainer}>
-            <Text style={styles.createWalletText}>Create Your KESE Wallet</Text>
+            <Text style={styles.createWalletText}>Hemen KESE'ni Oluştur</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.totalBalanceContainer}>
-            <Text style={styles.totalBalanceLabel}>Total Portfolio</Text>
+            <Text style={styles.totalBalanceLabel}>Toplam Varlık</Text>
             <Balance
               value={totalValue}
               currency="USD"
@@ -300,23 +271,57 @@ export default function WalletScreen() {
           </View>
         )}
 
-        {/* KESE Cards */}
+        {/* HIZLI İŞLEMLER */}
+        <View style={styles.quickActionsContainer}>
+          <Text style={styles.sectionTitle}>Hızlı İşlemler</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionsScroll}>
+            
+            {/* Gün Başlat */}
+            <TouchableOpacity style={styles.quickActionButton} onPress={handleStartGoldDay}>
+              <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255, 215, 0, 0.15)' }]}>
+                <Users size={24} color={colors.gold} />
+              </View>
+              <Text style={styles.quickActionText}>Gün Başlat</Text>
+            </TouchableOpacity>
+
+            {/* YENİ EKLENEN: Güne Katıl */}
+            <TouchableOpacity style={styles.quickActionButton} onPress={handleJoinGoldDay}>
+              <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255, 215, 0, 0.15)' }]}>
+                <UserPlus size={24} color={colors.gold} />
+              </View>
+              <Text style={styles.quickActionText}>Güne Katıl</Text>
+            </TouchableOpacity>
+
+            {/* Takı Tak */}
+            <TouchableOpacity style={styles.quickActionButton} onPress={handleQRPress}>
+              <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(46, 204, 113, 0.15)' }]}>
+                <QrCode size={24} color="#2ECC71" />
+              </View>
+              <Text style={styles.quickActionText}>Takı Tak</Text>
+            </TouchableOpacity>
+
+            {/* Kese Doldur */}
+            <TouchableOpacity style={styles.quickActionButton} onPress={() => Alert.alert("Bilgi", "Kredi kartı entegrasyonu yakında!")}>
+              <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(52, 152, 219, 0.15)' }]}>
+                <PlusCircle size={24} color="#3498DB" />
+              </View>
+              <Text style={styles.quickActionText}>Kese Doldur</Text>
+            </TouchableOpacity>
+
+          </ScrollView>
+        </View>
+
         <View style={styles.cardsContainer}>
           {renderAssetCard('KESE (Altın)', goldAsset, true)}
           {renderAssetCard('Nakit (Dolar)', cashAsset, false)}
         </View>
 
-        {/* Activity */}
         <View style={styles.activitySection}>
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            {walletTransactions.isLoading ? (
-              <View style={{ marginRight: 8 }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Son Hareketler</Text>
+            {walletTransactions.isLoading && (
+               <ActivityIndicator size="small" color={colors.primary} />
+            )}
           </View>
 
           {transactions.length > 0 ? (
@@ -328,7 +333,7 @@ export default function WalletScreen() {
                 <View style={styles.transactionInfo}>
                   <Text style={styles.transactionType}>{tx.asset}</Text>
                   <Text style={styles.transactionSubtitle}>
-                    {tx.type === 'sent' ? 'Sent' : 'Received'}
+                    {tx.type === 'sent' ? 'Gönderilen' : 'Gelen'}
                   </Text>
                 </View>
                 <View style={styles.transactionAmount}>
@@ -339,35 +344,37 @@ export default function WalletScreen() {
             ))
           ) : (
             <View style={styles.noAssetsContainer}>
-              <Text style={styles.noAssetsText}>No transactions yet</Text>
+              <Text style={styles.noAssetsText}>Henüz işlem yok</Text>
             </View>
           )}
 
-          <TouchableOpacity onPress={handleSeeAllActivity}>
-            <Text style={styles.seeAllText}>See All</Text>
+          <TouchableOpacity onPress={handleSeeAllActivity} style={styles.seeAllButton}>
+            <Text style={styles.seeAllText}>Tümünü Gör</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Bottom Actions */}
-      <View style={[styles.bottomActions, { marginBottom: insets.bottom }]}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => {}}>
-          <View style={[styles.navIconContainer, styles.activeNavIcon]}>
-            <Image 
-              source={require('../../assets/images/icon.png')} 
-              style={{ width: 24, height: 24, tintColor: colors.primary }} 
-            />
-          </View>
-          <Text style={[styles.actionButtonText, { color: colors.primary }]}>Home</Text>
-        </TouchableOpacity>
+      {/* ALT MENÜ */}
+      <View style={[styles.bottomBarContainer, { paddingBottom: insets.bottom }]}>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity 
+            style={styles.tabItem} 
+            onPress={() => scrollY && (scrollY as any).setValue(0)}
+          >
+            <Home size={26} color={colors.primary} />
+            <Text style={[styles.tabLabel, { color: colors.primary }]}>Ana Sayfa</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.qrButton} onPress={handleSendPress}>
-          <Send size={24} color={colors.black} />
-        </TouchableOpacity>
+          <View style={{ width: 70 }} />
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleSettingsPress}>
-          <User size={24} color={colors.textSecondary} />
-          <Text style={styles.actionButtonText}>Profile</Text>
+          <TouchableOpacity style={styles.tabItem} onPress={handleSettingsPress}>
+            <User size={26} color={colors.textSecondary} />
+            <Text style={styles.tabLabel}>Profil</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.floatingSendButton} onPress={handleSendPress} activeOpacity={0.9}>
+          <Send size={28} color={colors.black} style={{ marginLeft: -2, marginTop: 2 }} />
         </TouchableOpacity>
       </View>
     </View>
@@ -383,7 +390,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 130,
     flexGrow: 1,
   },
   header: {
@@ -394,6 +401,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
+    zIndex: 10,
   },
   walletInfo: {
     flexDirection: 'row',
@@ -402,22 +410,27 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   walletIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   walletIconText: {
+    fontSize: 20,
+  },
+  greetingText: {
+    color: colors.textSecondary,
     fontSize: 12,
   },
   walletName: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
   },
   headerActions: {
     flexDirection: 'row',
@@ -425,10 +438,15 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     padding: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
   },
   createWalletContainer: {
     alignItems: 'center',
     padding: 20,
+    backgroundColor: colors.card,
+    margin: 20,
+    borderRadius: 16,
   },
   createWalletText: {
     color: colors.primary,
@@ -444,7 +462,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 8,
+    letterSpacing: 1,
   },
+  
+  // HIZLI İŞLEMLER
+  quickActionsContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  actionsScroll: {
+    paddingLeft: 20,
+  },
+  quickActionButton: {
+    alignItems: 'center',
+    marginRight: 16,
+    width: 80,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickActionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
+  // KARTLAR
   cardsContainer: {
     paddingHorizontal: 20,
     marginBottom: 32,
@@ -452,13 +507,18 @@ const styles = StyleSheet.create({
   },
   keseCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   goldCard: {
-    backgroundColor: 'rgba(255, 215, 0, 0.05)', // Very subtle gold tint
+    backgroundColor: 'rgba(255, 215, 0, 0.05)', 
     borderColor: colors.gold,
   },
   cardHeader: {
@@ -496,26 +556,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
+
+  // AKTİVİTE
   activitySection: {
     paddingHorizontal: 20,
     marginBottom: 32,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     marginBottom: 12,
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 16,
   },
   transactionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.border,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -525,12 +591,12 @@ const styles = StyleSheet.create({
   },
   transactionType: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
   },
   transactionSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   transactionAmount: {
@@ -543,7 +609,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   transactionUsdAmount: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   noAssetsContainer: {
@@ -554,68 +620,70 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  seeAllButton: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   seeAllText: {
     fontSize: 14,
     color: colors.primary,
-    textAlign: 'center',
-    marginTop: 8,
+    fontWeight: '600',
   },
-  bottomActions: {
+
+  // ALT MENÜ
+  bottomBarContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 72,
-    right: 72,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 100, 
+  },
+  bottomBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 48,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    shadowColor: colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    height: 80,
+    width: '90%',
+    height: 70,
+    borderRadius: 35,
+    paddingHorizontal: 40, 
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 10,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  qrButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 20,
+    height: '100%',
+    minWidth: 50, 
+  },
+  tabLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  floatingSendButton: {
+    position: 'absolute',
+    bottom: 40,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: colors.primary,
-    marginBottom: 24, // Lift it up slightly
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: colors.background,
     shadowColor: colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 8,
-  },
-  navIconContainer: {
-    marginBottom: 4,
-  },
-  activeNavIcon: {
-    // Optional: Add indicator for active state
   },
 });

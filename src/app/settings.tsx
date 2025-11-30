@@ -5,7 +5,8 @@ import useWalletAvatar from '@/hooks/use-wallet-avatar';
 import getDisplaySymbol from '@/utils/get-display-symbol';
 import { NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
 import * as Clipboard from 'expo-clipboard';
-import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
+// ⚠️ DİKKAT: Burada da useRouter kullanıyoruz, garanti olsun
+import { useRouter } from 'expo-router';
 import { Copy, Info, Shield, Trash2, Wallet } from 'lucide-react-native';
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -15,31 +16,32 @@ import { colors } from '@/constants/colors';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const router = useDebouncedNavigation();
+  const router = useRouter(); // <-- Düzeltildi
   const { wallet, clearWallet, addresses } = useWallet();
   const avatar = useWalletAvatar();
 
   const handleDeleteWallet = () => {
     Alert.alert(
-      'Delete Wallet',
-      'This will permanently delete your wallet and all associated data. Make sure you have backed up your recovery phrase. This action cannot be undone.',
+      'Keseyi Sil',
+      'Bak Dayı, bunu silersen bu telefondaki her şey gider. Eğer o 12 kelimelik "Kasa Anahtarı"nı bir yere yazmadıysan parana bir daha ulaşamazsın. Emin misin?',
       [
         {
-          text: 'Cancel',
+          text: 'Vazgeç',
           style: 'cancel',
         },
         {
-          text: 'Delete Wallet',
+          text: 'Evet, Sil Gitsin',
           style: 'destructive',
           onPress: async () => {
             try {
               await clearWallet();
               await clearAvatar();
-              toast.success('Wallet deleted successfully');
-              router.dismissAll('/');
+              toast.success('Kese başarıyla silindi');
+              router.dismissAll();
+              router.replace('/');
             } catch (error) {
               console.error('Failed to delete wallet:', error);
-              toast.error('Failed to delete wallet');
+              toast.error('Silinirken hata oluştu');
             }
           },
         },
@@ -49,60 +51,61 @@ export default function SettingsScreen() {
 
   const handleCopyAddress = async (address: string, networkName: string) => {
     await Clipboard.setStringAsync(address);
-    toast.success(`${networkName} address copied to clipboard`);
+    toast.success(`${networkName} adresi kopyalandı`);
   };
 
   const formatAddress = (address: string) => {
-    if (!address) return 'N/A';
+    if (!address) return 'Yok';
     if (address.length <= 15) return address;
     return `${address.slice(0, 10)}...${address.slice(-10)}`;
   };
 
   const getNetworkName = (network: string) => {
-    return networkConfigs[network as NetworkType].name || network;
+    const config = networkConfigs[network as NetworkType];
+    return config?.name || network;
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header title="Settings" />
+      <Header title="Ayarlar" />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Wallet Info Section */}
+        {/* Kese Bilgileri */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Wallet size={20} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Wallet Information</Text>
+            <Text style={styles.sectionTitle}>Kese Bilgileri</Text>
           </View>
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Name</Text>
-              <Text style={styles.infoValue}>{wallet?.name || 'Unknown'}</Text>
+              <Text style={styles.infoLabel}>Kese Adı</Text>
+              <Text style={styles.infoValue}>{wallet?.name || 'İsimsiz'}</Text>
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Icon</Text>
+              <Text style={styles.infoLabel}>Simge</Text>
               <Text style={styles.infoValue}>{avatar}</Text>
             </View>
 
             <View style={[styles.infoRow, styles.infoRowLast]}>
-              <Text style={styles.infoLabel}>Enabled Assets</Text>
+              <Text style={styles.infoLabel}>Varlıklar</Text>
               <Text style={styles.infoValue}>
-                {wallet?.enabledAssets?.map(asset => getDisplaySymbol(asset)).join(', ') || 'None'}
+                {wallet?.enabledAssets?.map(asset => getDisplaySymbol(asset)).join(', ') || 'Yok'}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Network Addresses Section */}
+        {/* Adresler */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Shield size={20} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Network Addresses</Text>
+            <Text style={styles.sectionTitle}>Cüzdan Adresleri</Text>
           </View>
 
           <View style={styles.addressCard}>
@@ -127,41 +130,40 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* About Section */}
+        {/* Hakkında */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Info size={20} color={colors.primary} />
-            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.sectionTitle}>Uygulama Hakkında</Text>
           </View>
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Version</Text>
-              <Text style={styles.infoValue}>1.0.0</Text>
+              <Text style={styles.infoLabel}>Sürüm</Text>
+              <Text style={styles.infoValue}>1.0.0 (KESE MVP)</Text>
             </View>
 
             <View style={[styles.infoRow, styles.infoRowLast]}>
-              <Text style={styles.infoLabel}>WDK Version</Text>
-              <Text style={styles.infoValue}>Latest</Text>
+              <Text style={styles.infoLabel}>Altyapı</Text>
+              <Text style={styles.infoValue}>Tether WDK</Text>
             </View>
           </View>
         </View>
 
-        {/* Danger Zone */}
+        {/* Tehlikeli Bölge */}
         <View style={styles.dangerSection}>
           <View style={styles.sectionHeader}>
             <Trash2 size={20} color={colors.danger} />
-            <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger Zone</Text>
+            <Text style={[styles.sectionTitle, styles.dangerTitle]}>Tehlikeli Bölge</Text>
           </View>
 
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteWallet}>
             <Trash2 size={20} color={colors.white} />
-            <Text style={styles.deleteButtonText}>Delete Wallet</Text>
+            <Text style={styles.deleteButtonText}>Keseyi Sil / Sıfırla</Text>
           </TouchableOpacity>
 
           <Text style={styles.warningText}>
-            Deleting your wallet will remove all data from this device. Make sure you have backed up
-            your recovery phrase before proceeding.
+            DİKKAT: Keseyi sildiğinde içindeki tüm bilgiler bu telefondan silinir. Kasa anahtarın (12 kelime) yedeğin yoksa parana bir daha ulaşamazsın.
           </Text>
         </View>
       </ScrollView>
@@ -194,18 +196,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginLeft: 8,
+    marginLeft: 10,
   },
   infoCard: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDark,
   },
@@ -213,29 +217,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textSecondary,
   },
   infoValue: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  infoValueSmall: {
-    fontSize: 12,
+    fontSize: 15,
     color: colors.text,
     fontWeight: '500',
   },
   addressCard: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   addressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDark,
   },
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   addressValue: {
     fontSize: 13,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: 'monospace', // Adresler için kod fontu
   },
   dangerSection: {
     paddingHorizontal: 20,
@@ -268,10 +269,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.danger,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)', // Kırmızının soft hali
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.danger,
   },
   deleteButtonText: {
     color: colors.text,
@@ -280,9 +283,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   warningText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
+    paddingHorizontal: 10,
   },
 });
