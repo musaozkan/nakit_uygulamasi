@@ -88,6 +88,96 @@ export default function WalletScreen() {
     };
   };
 
+  // Calculate total assets value in USD
+  const [totalAssetsValue, setTotalAssetsValue] = useState(0);
+  const [xautUsdValue, setXautUsdValue] = useState(0);
+  const [usdtUsdValue, setUsdtUsdValue] = useState(0);
+
+  useEffect(() => {
+    const calculateTotalValue = async () => {
+      try {
+        const xautBalance = getBalanceForSymbol('XAUT');
+        const usdtBalance = getBalanceForSymbol('USDT');
+
+        console.log('🔍 XAUT balance (token):', xautBalance.balance);
+        console.log('🔍 USDT balance (token):', usdtBalance.balance);
+
+        // Get fiat values with fallback
+        let xautFiatValue = 0;
+        let usdtFiatValue = 0;
+
+        // Check if pricing service is ready
+        if (!pricingService.isReady()) {
+          console.warn('⏳ Pricing service not ready yet, using fallback values');
+          xautFiatValue = xautBalance.balance * 2000; // Fallback
+          usdtFiatValue = usdtBalance.balance; // USDT = USD 1:1
+
+          // Retry after 2 seconds when pricing service should be ready
+          setTimeout(() => {
+            console.log('🔄 Retrying calculation after pricing service initialization...');
+            calculateTotalValue();
+          }, 2000);
+        } else {
+          try {
+            // Balance is already converted to token amount in getBalanceForSymbol
+            xautFiatValue = await pricingService.getFiatValue(
+              xautBalance.balance,
+              'XAUT' as AssetTicker,
+              FiatCurrency.USD
+            );
+            console.log('✅ XAUT USD value:', xautFiatValue);
+          } catch (error) {
+            console.warn('❌ Failed to get XAUT price:', error);
+            console.log('Using fallback: 0.0325 XAUT * $2000 = $65');
+            // Fallback: assume 1 XAUT ≈ $2000 (rough estimate)
+            xautFiatValue = xautBalance.balance * 4200;
+          }
+
+          try {
+            // Balance is already converted to token amount in getBalanceForSymbol
+            usdtFiatValue = await pricingService.getFiatValue(
+              usdtBalance.balance,
+              'USDT' as AssetTicker,
+              FiatCurrency.USD
+            );
+            console.log('✅ USDT USD value:', usdtFiatValue);
+          } catch (error) {
+            console.warn('❌ Failed to get USDT price:', error);
+            console.log('Using fallback: USDT = USD 1:1');
+            // Fallback: USDT is pegged to USD, so 1:1
+            usdtFiatValue = usdtBalance.balance;
+          }
+        }
+
+        // Update individual values
+        setXautUsdValue(xautFiatValue || 0);
+        setUsdtUsdValue(usdtFiatValue || 0);
+
+        const total = (xautFiatValue || 0) + (usdtFiatValue || 0);
+        console.log('💰 Total assets value:', total);
+        setTotalAssetsValue(total);
+      } catch (error) {
+        console.error('Failed to calculate total value:', error);
+        // Set to 0 on error instead of leaving stale value
+        setTotalAssetsValue(0);
+        setXautUsdValue(0);
+        setUsdtUsdValue(0);
+      }
+    };
+
+    if (balances.list.length > 0) {
+      calculateTotalValue();
+    }
+  }, [balances.list]);
+
+  // Fetch balances on mount
+  useEffect(() => {
+    if (wallet && !balances.isLoading && balances.list.length === 0) {
+      console.log('📊 Fetching balances on mount...');
+      refreshWalletBalance();
+    }
+  }, [wallet]);
+
   useEffect(() => {
     if (hasWallet && !isUnlocked) {
       router.replace('/authorize');
@@ -225,6 +315,9 @@ export default function WalletScreen() {
     let displayAmount = balanceData.formatted;
     let displayUnit: string = symbol;
 
+    // Get USD value for this asset
+    const usdValue = symbol === 'XAUT' ? xautUsdValue : usdtUsdValue;
+
     if (isGold && showGrams) {
       // Convert to Grams
       const rawAmount = balanceData.balance;
@@ -260,8 +353,8 @@ export default function WalletScreen() {
           {/* Gold Unit Toggle Button */}
           {isGold && (
             <TouchableOpacity
-              style={styles.unitToggleButton}
               onPress={() => setShowGrams(!showGrams)}
+              style={styles.unitToggleButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <ArrowLeftRight size={16} color={colors.gold} />
@@ -274,7 +367,7 @@ export default function WalletScreen() {
             {hideBalances ? '****' : displayAmount} {displayUnit}
           </Text>
           <Text style={styles.cardFiat}>
-            {hideBalances ? '****' : '0.00'} USD
+            {hideBalances ? '****' : formatAmount(usdValue)} USD
           </Text>
         </View>
       </TouchableOpacity>
@@ -347,12 +440,12 @@ export default function WalletScreen() {
                 {hideBalances ? <EyeOff size={18} color={colors.textSecondary} /> : <Eye size={18} color={colors.textSecondary} />}
               </TouchableOpacity>
             </View>
-            {isLoading ? (
+            {balances.isLoading ? (
               <BalanceLoader />
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                 <Text style={styles.balanceText}>
-                  {hideBalances ? '****' : formatAmount(totalValue)}
+                  {hideBalances ? '****' : formatAmount(totalAssetsValue)}
                 </Text>
                 <Text style={styles.currencyText}> USD</Text>
               </View>

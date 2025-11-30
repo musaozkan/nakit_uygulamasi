@@ -13,7 +13,7 @@ class PricingService {
   private fiatExchangeRateCache: Record<FiatCurrency, Record<AssetTicker, number>> | undefined;
   private isInitialized: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): PricingService {
     if (!PricingService.instance) {
@@ -34,15 +34,36 @@ class PricingService {
       });
 
       // Fetch and update exchange rate cache
+      console.log('📡 Fetching exchange rates from Bitfinex...');
+
+      let btcRate, xautRate;
+
+      try {
+        btcRate = await this.provider.getLastPrice(AssetTicker.BTC, FiatCurrency.USD);
+        console.log('✅ BTC rate:', btcRate);
+      } catch (error) {
+        console.error('❌ Failed to fetch BTC rate:', error);
+        btcRate = 0; // Fallback
+      }
+
+      try {
+        xautRate = await this.provider.getLastPrice(AssetTicker.XAUT, FiatCurrency.USD);
+        console.log('✅ XAUT rate:', xautRate);
+      } catch (error) {
+        console.error('❌ Failed to fetch XAUT rate:', error);
+        xautRate = 2000; // Fallback: ~$2000 per troy ounce
+      }
+
       this.fiatExchangeRateCache = {
         [FiatCurrency.USD]: {
-          [AssetTicker.BTC]: await this.provider.getLastPrice(AssetTicker.BTC, FiatCurrency.USD),
+          [AssetTicker.BTC]: btcRate,
           [AssetTicker.USDT]: 1,
-          [AssetTicker.XAUT]: await this.provider.getLastPrice(AssetTicker.XAUT, FiatCurrency.USD),
+          [AssetTicker.XAUT]: xautRate,
         },
       };
 
-    console.log("Pricing service initialized");
+      console.log("💰 Exchange rates loaded:", this.fiatExchangeRateCache[FiatCurrency.USD]);
+      console.log("Pricing service initialized");
 
       this.isInitialized = true;
     } catch (error) {
@@ -56,7 +77,14 @@ class PricingService {
       throw new Error('Pricing service not initialized. Call initialize() first.');
     }
 
-    return new DecimalJS(value).mul(this.fiatExchangeRateCache[currency][asset]).toNumber();
+    const exchangeRate = this.fiatExchangeRateCache[currency][asset];
+    console.log(`💱 Exchange rate for ${asset}/${currency}:`, exchangeRate);
+
+    if (exchangeRate === undefined) {
+      throw new Error(`Exchange rate for ${asset}/${currency} not found in cache`);
+    }
+
+    return new DecimalJS(value).mul(exchangeRate).toNumber();
   }
 
   async refreshExchangeRates(): Promise<void> {

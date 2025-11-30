@@ -12,6 +12,7 @@ import { CHAINS_CONFIG } from "../config/chains";
 import { Toaster } from 'sonner-native';
 import { colors } from '@/constants/colors';
 import { KeseWalletProvider } from '@/providers/KeseWalletProvider';
+import { pricingService } from '@/services/pricing-service';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,9 +29,17 @@ export default function RootLayout() {
   useEffect(() => {
     const initApp = async () => {
       try {
+        console.log('🚀 Initializing services...');
+
+        // Initialize WDK Service
         await WDKService.initialize();
+        console.log('✅ WDK Service initialized');
+
+        // Initialize Pricing Service
+        await pricingService.initialize();
+        console.log('✅ Pricing Service initialized');
       } catch (error) {
-        console.error('Failed to initialize services in app layout:', error);
+        console.error('❌ Failed to initialize services:', error);
       } finally {
         SplashScreen.hideAsync();
       }

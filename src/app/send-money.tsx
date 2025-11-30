@@ -39,11 +39,7 @@ export default function SendMoneyScreen() {
 
     // Get balance for selected asset
     const getBalance = () => {
-        console.log('Balances list:', balances.list);
-        console.log('Selected asset:', selectedAsset);
-
         const balanceItem = balances.list.find(b => b.symbol === selectedAsset);
-        console.log('Found balance item:', balanceItem);
 
         if (!balanceItem) return { balance: 0, formatted: '0.00' };
 
